@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+
+<title>Stopwatch</title>
+<style>
+  :root{
+    --bg:#000000;
+    --white:#ffffff;
+
+    --lap-btn-bg:#1c1c1e;
+    --lap-btn-text:#b4b4ba;
+
+    --start-btn-bg:#0a2a12;
+    --start-btn-text:#30d158;
+
+    --stop-btn-bg:#310e0c;
+    --stop-btn-text:#ff453a;
+
+    --divider:#2c2c2e;
+
+    --dot-active:#ffffff;
+    --dot-inactive:#727272;
+
+    --tabbar-bg:#202020;
+    --tabbar-pill-bg:#0a0a0a;
+    --tab-inactive:#ffffff;
+    --tab-active:#ff9f0a;
+
+    --lap-green:#30d158;
+    --lap-red:#ff453a;
+
+    --pad-x: 4.3vw;
+  }
+
+  *{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    background:var(--bg);
+    font-family:-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    overscroll-behavior:none;
+    overflow:hidden;
+  }
+
+  .phone{
+    max-width:500px;
+    margin:0 auto;
+    height:100vh;
+    height:100dvh;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    overflow:hidden;
+  }
+
+  .time-display{
+    flex-shrink:0;
+    padding-top:11.6vh;
+    padding-left:5.9vw;
+    padding-right:var(--pad-x);
+    text-align:left;
+    overflow:hidden;
+  }
+
+  .time-display .clock{
+    font-size:clamp(40px, 11.6vh, 91px);
+    font-weight:200;
+    color:var(--white);
+    letter-spacing:-1.5px;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+    line-height:1;
+    display:inline-block;
+  }
+
+  .clock .unit{
+    font-weight:200;
+  }
+
+  .controls{
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding-top:17.65vh;
+    padding-left:4vw;
+    padding-right:4vw;
+    padding-bottom:2vh;
+    position:relative;
+  }
+
+  .ctrl-btn{
+    width:21vw;
+    height:21vw;
+    max-width:86px;
+    max-height:86px;
+    min-width:64px;
+    min-height:64px;
+    border-radius:50%;
+    border:0.5px solid rgba(255,255,255,0.06);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:16.5px;
+    font-weight:400;
+    cursor:pointer;
+    background:var(--lap-btn-bg);
+    color:var(--lap-btn-text);
+    -webkit-appearance:none;
+    appearance:none;
+    outline:none;
+    transition:opacity 0.15s ease;
+    padding:0;
+  }
+
+  .ctrl-btn:active{
+    opacity:0.6;
+  }
+
+  .ctrl-btn.disabled{
+    color:#4a4a4c;
+  }
+
+  .ctrl-btn.start-state{
+    background:var(--start-btn-bg);
+    color:var(--start-btn-text);
+  }
+
+  .ctrl-btn.stop-state{
+    background:var(--stop-btn-bg);
+    color:var(--stop-btn-text);
+  }
+
+  .page-dots{
+    display:flex;
+    gap:7px;
+    align-items:center;
+  }
+
+  .page-dots span{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:var(--dot-inactive);
+  }
+
+  .page-dots span.active{
+    background:var(--dot-active);
+  }
+
+  .divider-top{
+    height:1px;
+    background:var(--divider);
+    flex-shrink:0;
+    margin:0 var(--pad-x);
+  }
+
+  .lap-list{
+    flex:1;
+    overflow-y:auto;
+    padding:0 var(--pad-x);
+    -webkit-overflow-scrolling:touch;
+    min-height:0;
+  }
+
+  .lap-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:15px 0;
+    border-bottom:1px solid var(--divider);
+    font-size:17px;
+    color:var(--white);
+    font-variant-numeric:tabular-nums;
+  }
+
+  .lap-row .lap-label{
+    font-weight:400;
+  }
+
+  .lap-row .lap-time{
+    font-weight:400;
+  }
+
+  .lap-row.fastest .lap-label,
+  .lap-row.fastest .lap-time{
+    color:var(--lap-green);
+  }
+
+  .lap-row.slowest .lap-label,
+  .lap-row.slowest .lap-time{
+    color:var(--lap-red);
+  }
+
+  .tabbar-wrap{
+    flex-shrink:0;
+    padding:0 3.2vw calc(0.4vh + env(safe-area-inset-bottom, 0px)) 3.2vw;
+  }
+
+  .tabbar{
+    background:var(--tabbar-bg);
+    border-radius:999px;
+    display:flex;
+    align-items:stretch;
+    height:7.6vh;
+    max-height:62px;
+    min-height:52px;
+    position:relative;
+  }
+
+  .tab{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    color:var(--tab-inactive);
+    position:relative;
+    z-index:1;
+    margin:4px 2px;
+    border-radius:999px;
+  }
+
+  .tab svg{
+    width:23px;
+    height:23px;
+  }
+
+  .tab span{
+    font-size:10px;
+    font-weight:500;
+  }
+
+  .tab.active{
+    color:var(--tab-active);
+    background:var(--tabbar-pill-bg);
+  }
+
+  /* ===== Magic Mode popup (new, does not affect existing design) ===== */
+  #lapResetBtn{
+    touch-action:manipulation;
+  }
+
+  .magic-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.6);
+    z-index:1000;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+
+  .magic-overlay.open{
+    display:flex;
+  }
+
+  .magic-popup{
+    background:#1c1c1e;
+    border-radius:16px;
+    width:100%;
+    max-width:340px;
+    max-height:72vh;
+    padding:18px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    box-shadow:0 10px 40px rgba(0,0,0,0.5);
+  }
+
+  .magic-title{
+    color:var(--white);
+    font-size:16px;
+    font-weight:600;
+    text-align:center;
+    font-family:-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .magic-lap-list{
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    max-height:42vh;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .magic-lap-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  .magic-lap-label{
+    color:var(--lap-btn-text);
+    font-size:14px;
+    flex:1;
+  }
+
+  .magic-lap-input{
+    width:52px;
+    background:#0a0a0a;
+    border:1px solid var(--divider);
+    border-radius:8px;
+    color:var(--white);
+    font-size:15px;
+    text-align:center;
+    padding:7px 0;
+    font-variant-numeric:tabular-nums;
+    outline:none;
+  }
+
+  .magic-lap-input.invalid{
+    border-color:var(--lap-red);
+  }
+
+  .magic-remove-btn{
+    background:none;
+    border:none;
+    color:var(--lap-btn-text);
+    font-size:15px;
+    cursor:pointer;
+    padding:4px 6px;
+    line-height:1;
+  }
+
+  .magic-add-btn{
+    background:var(--lap-btn-bg);
+    border:0.5px solid rgba(255,255,255,0.08);
+    color:var(--tab-active);
+    border-radius:10px;
+    padding:11px;
+    font-size:14px;
+    cursor:pointer;
+  }
+
+  .magic-save-btn{
+    background:var(--start-btn-bg);
+    border:none;
+    color:var(--start-btn-text);
+    border-radius:10px;
+    padding:12px;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+  }
+
+
+  /* ===== Magic Mode 2 popup (additive, independent from Magic Mode) ===== */
+  .magic2-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1001;align-items:center;justify-content:center;padding:24px}
+  .magic2-overlay.open{display:flex}
+  .magic2-popup{background:#1c1c1e;border-radius:16px;width:100%;max-width:340px;max-height:72vh;padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5)}
+  .magic2-title{color:var(--white);font-size:16px;font-weight:600;text-align:center;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif}
+  .magic2-list{overflow-y:auto;display:flex;flex-direction:column;gap:8px;max-height:42vh;-webkit-overflow-scrolling:touch}
+  .magic2-row{display:flex;align-items:center;gap:8px}
+  .magic2-label{color:var(--lap-btn-text);font-size:14px;flex:1}
+  .magic2-input{width:52px;background:#0a0a0a;border:1px solid var(--divider);border-radius:8px;color:var(--white);font-size:15px;text-align:center;padding:7px 0;font-variant-numeric:tabular-nums;outline:none;user-select:text;-webkit-user-select:text}
+  .magic2-input.invalid{border-color:var(--lap-red)}
+  .magic2-remove-btn{background:none;border:none;color:var(--lap-btn-text);font-size:15px;cursor:pointer;padding:4px 6px;line-height:1}
+  .magic2-add-btn{background:var(--lap-btn-bg);border:0.5px solid rgba(255,255,255,0.08);color:var(--tab-active);border-radius:10px;padding:11px;font-size:14px;cursor:pointer}
+  .magic2-save-btn{background:var(--start-btn-bg);border:none;color:var(--start-btn-text);border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer}
+
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <div class="time-display">
+    <div class="clock" id="clock">00<span class="unit">:</span>00<span class="unit">.</span>00</div>
+  </div>
+
+  <div class="controls">
+    <button class="ctrl-btn disabled" id="lapResetBtn">Lap</button>
+    <div class="page-dots">
+      <span class="active"></span>
+      <span></span>
+    </div>
+    <button class="ctrl-btn start-state" id="startStopBtn">Start</button>
+  </div>
+
+  <div class="divider-top"></div>
+
+  <div class="lap-list" id="lapList"></div>
+
+  <div class="tabbar-wrap" id="tabbarWrap">
+    <div class="tabbar">
+      <div class="tab" id="worldClockTab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="12" cy="12" r="9.25"/>
+          <ellipse cx="12" cy="12" rx="4" ry="9.25"/>
+          <line x1="2.75" y1="12" x2="21.25" y2="12"/>
+          <path d="M4.2,7 C6.5,8.5 9.2,9.3 12,9.3 C14.8,9.3 17.5,8.5 19.8,7"/>
+          <path d="M4.2,17 C6.5,15.5 9.2,14.7 12,14.7 C14.8,14.7 17.5,15.5 19.8,17"/>
+        </svg>
+        <span>World Clock</span>
+      </div>
+      <div class="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="12" cy="12.5" r="8"/>
+          <path d="M12,7.5 L12,12.5 L15.5,14.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="4.5" y1="3.5" x2="7" y2="6" stroke-linecap="round"/>
+          <line x1="19.5" y1="3.5" x2="17" y2="6" stroke-linecap="round"/>
+        </svg>
+        <span>Alarms</span>
+      </div>
+      <div class="tab active">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="13" r="8" fill="#ff9f0a"/>
+          <path d="M12,8.5 L12,13 L14.6,14.8" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <line x1="12" y1="2" x2="12" y2="4.2" stroke="#ff9f0a" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="18.3" y1="5.3" x2="16.8" y2="6.7" stroke="#ff9f0a" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <span>Stopwatch</span>
+      </div>
+      <div class="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="12" cy="12" r="8.5"/>
+          <path d="M12,3.5 A8.5,8.5 0 0 1 19.5,8" stroke-linecap="round"/>
+          <path d="M12,7.5 L12,12 L9.2,14" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Timers</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== Magic Mode 2 popup markup (additive, independent from Magic Mode) ===== -->
+<div class="magic2-overlay" id="magic2Overlay">
+  <div class="magic2-popup">
+    <div class="magic2-title">Magic Mode 2</div>
+    <div class="magic2-list" id="magic2List"></div>
+    <button class="magic2-add-btn" id="magic2AddBtn">+ Add Number</button>
+    <button class="magic2-save-btn" id="magic2SaveBtn">Save</button>
+  </div>
+</div>
+
+<!-- ===== Magic Mode popup markup (new) ===== -->
+<div class="magic-overlay" id="magicOverlay">
+  <div class="magic-popup">
+    <div class="magic-title">Magic Mode</div>
+    <div class="magic-lap-list" id="magicLapList"></div>
+    <button class="magic-add-btn" id="magicAddBtn">+ Add Lap</button>
+    <button class="magic-save-btn" id="magicSaveBtn">Save</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const clockEl = document.getElementById('clock');
+  const startStopBtn = document.getElementById('startStopBtn');
+  const lapResetBtn = document.getElementById('lapResetBtn');
+  const lapList = document.getElementById('lapList');
+
+  let running = false;
+  let startTimestamp = 0;
+  let accumulatedMs = 0;
+  let rafId = null;
+  let laps = [];
+  let lastLapElapsed = 0;
+
+  function formatTime(ms){
+    if(ms < 0) ms = 0;
+    const totalCentis = Math.floor(ms / 10);
+    const centis = totalCentis % 100;
+    const totalSeconds = Math.floor(totalCentis / 100);
+    const seconds = totalSeconds % 60;
+    const minutes = Math.floor(totalSeconds / 60);
+    const pad2 = n => String(n).padStart(2,'0');
+    return { main: pad2(minutes) + ':' + pad2(seconds), centis: pad2(centis) };
+  }
+
+  function getElapsed(){
+    if(running){
+      return accumulatedMs + (performance.now() - startTimestamp);
+    }
+    return accumulatedMs;
+  }
+
+  function renderClock(){
+    const elapsed = getElapsed();
+    const t = formatTime(elapsed);
+    clockEl.innerHTML = t.main + '<span class="unit">.</span>' + t.centis;
+  }
+
+  function tick(){
+    renderClock();
+    if(running){
+      rafId = requestAnimationFrame(tick);
+    }
+  }
+
+  function renderLaps(){
+    lapList.innerHTML = '';
+    if(laps.length === 0) return;
+
+    let fastestIdx = -1, slowestIdx = -1;
+    if(laps.length >= 3){
+      let minVal = Infinity, maxVal = -Infinity;
+      laps.forEach((lap, i) => {
+        if(lap.intervalMs < minVal){ minVal = lap.intervalMs; fastestIdx = i; }
+        if(lap.intervalMs > maxVal){ maxVal = lap.intervalMs; slowestIdx = i; }
+      });
+    }
+
+    for(let i = laps.length - 1; i >= 0; i--){
+      const lap = laps[i];
+      const row = document.createElement('div');
+      row.className = 'lap-row';
+      if(i === fastestIdx) row.classList.add('fastest');
+      if(i === slowestIdx) row.classList.add('slowest');
+
+      const label = document.createElement('span');
+      label.className = 'lap-label';
+      label.textContent = 'Lap ' + lap.number;
+
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'lap-time';
+      const t = formatTime(lap.intervalMs);
+      const centis = lap.magicCentis ? lap.magicCentis : t.centis;
+      timeSpan.textContent = t.main + '.' + centis;
+
+      row.appendChild(label);
+      row.appendChild(timeSpan);
+      lapList.appendChild(row);
+    }
+  }
+
+  function setInitialState(){
+    startStopBtn.textContent = 'Start';
+    startStopBtn.className = 'ctrl-btn start-state';
+    lapResetBtn.textContent = 'Lap';
+    lapResetBtn.className = 'ctrl-btn disabled';
+  }
+
+  function setRunningState(){
+    startStopBtn.textContent = 'Stop';
+    startStopBtn.className = 'ctrl-btn stop-state';
+    lapResetBtn.textContent = 'Lap';
+    lapResetBtn.className = 'ctrl-btn';
+  }
+
+  function setStoppedState(){
+    startStopBtn.textContent = 'Start';
+    startStopBtn.className = 'ctrl-btn start-state';
+    lapResetBtn.textContent = 'Reset';
+    lapResetBtn.className = 'ctrl-btn';
+  }
+
+  function handleStartStop(){
+    if(!running){
+      running = true;
+      startTimestamp = performance.now();
+      setRunningState();
+      rafId = requestAnimationFrame(tick);
+    } else {
+      running = false;
+      accumulatedMs += (performance.now() - startTimestamp);
+      if(rafId) cancelAnimationFrame(rafId);
+      renderClock();
+      applyMagic2StopValue();
+      setStoppedState();
+    }
+  }
+
+  function handleLapReset(){
+    if(running){
+      const elapsed = getElapsed();
+      const intervalMs = elapsed - lastLapElapsed;
+      lastLapElapsed = elapsed;
+      const lapObj = { number: laps.length + 1, splitMs: elapsed, intervalMs: intervalMs, magicCentis: null };
+      if(magicPlaybackActive && magicPlaybackIndex < magicValues.length){
+        lapObj.magicCentis = magicValues[magicPlaybackIndex];
+        magicPlaybackIndex++;
+      }
+      laps.push(lapObj);
+      renderLaps();
+    } else {
+      running = false;
+      accumulatedMs = 0;
+      startTimestamp = 0;
+      laps = [];
+      lastLapElapsed = 0;
+      magicPlaybackActive = false;
+      magicPlaybackIndex = 0;
+      magic2PlaybackActive = false;
+      magic2PlaybackIndex = 0;
+      if(rafId) cancelAnimationFrame(rafId);
+      renderClock();
+      renderLaps();
+      setInitialState();
+    }
+  }
+
+  startStopBtn.addEventListener('click', handleStartStop);
+
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden && running){
+      renderClock();
+    }
+  });
+
+  /* ===================================================================
+     MAGIC MODE (new feature — everything below is additive)
+     =================================================================== */
+
+  const MAGIC_KEY = 'stopwatchMagicValues';
+
+  function loadMagicValues(){
+    try{
+      const raw = localStorage.getItem(MAGIC_KEY);
+      if(!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.filter(v => /^[0-9]{2}$/.test(v)) : [];
+    }catch(e){
+      return [];
+    }
+  }
+
+  function saveMagicValuesToStorage(arr){
+    try{
+      localStorage.setItem(MAGIC_KEY, JSON.stringify(arr));
+    }catch(e){
+      /* storage unavailable — fail silently, no visible error */
+    }
+  }
+
+  let magicValues = loadMagicValues();
+  let magicPlaybackActive = false;
+  let magicPlaybackIndex = 0;
+
+  /* ---- secret triple-tap on bottom capsule opens the config popup ---- */
+  const tabbarWrap = document.getElementById('tabbarWrap');
+  let magicTapCount = 0;
+  let magicTapTimer = null;
+  const MAGIC_TAP_WINDOW_MS = 700;
+
+  tabbarWrap.addEventListener('click', function(){
+    magicTapCount++;
+    if(magicTapTimer) clearTimeout(magicTapTimer);
+    if(magicTapCount >= 3){
+      magicTapCount = 0;
+      openMagicPopup();
+      return;
+    }
+    magicTapTimer = setTimeout(function(){ magicTapCount = 0; }, MAGIC_TAP_WINDOW_MS);
+  });
+
+  /* ---- popup ---- */
+  const magicOverlay = document.getElementById('magicOverlay');
+  const magicLapList = document.getElementById('magicLapList');
+  const magicAddBtn = document.getElementById('magicAddBtn');
+  const magicSaveBtn = document.getElementById('magicSaveBtn');
+
+  function relabelMagicRows(){
+    const rows = magicLapList.querySelectorAll('.magic-lap-row');
+    rows.forEach(function(row, i){
+      row.querySelector('.magic-lap-label').textContent = 'Lap ' + (i + 1);
+    });
+  }
+
+  function addMagicRow(value){
+    const row = document.createElement('div');
+    row.className = 'magic-lap-row';
+
+    const label = document.createElement('span');
+    label.className = 'magic-lap-label';
+    label.textContent = 'Lap ' + (magicLapList.children.length + 1);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.inputMode = 'numeric';
+    input.autocomplete = 'off';
+    input.maxLength = 2;
+    input.className = 'magic-lap-input';
+    input.value = value || '';
+    input.addEventListener('input', function(){
+      input.value = input.value.replace(/[^0-9]/g, '').slice(0, 2);
+      input.classList.remove('invalid');
+    });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'magic-remove-btn';
+    removeBtn.textContent = '\u2715';
+    removeBtn.addEventListener('click', function(){
+      row.remove();
+      relabelMagicRows();
+    });
+
+    row.appendChild(label);
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    magicLapList.appendChild(row);
+  }
+
+  function renderMagicPopup(){
+    magicLapList.innerHTML = '';
+    const values = magicValues.length ? magicValues : [''];
+    values.forEach(function(v){ addMagicRow(v); });
+  }
+
+  function openMagicPopup(){
+    renderMagicPopup();
+    magicOverlay.classList.add('open');
+  }
+
+  function closeMagicPopup(){
+    magicOverlay.classList.remove('open');
+  }
+
+  magicAddBtn.addEventListener('click', function(){
+    addMagicRow('');
+  });
+
+  magicSaveBtn.addEventListener('click', function(){
+    const inputs = magicLapList.querySelectorAll('.magic-lap-input');
+    const result = [];
+    let valid = true;
+    inputs.forEach(function(input){
+      const v = input.value.trim();
+      if(v === '') return;
+      if(!/^[0-9]{2}$/.test(v)){
+        valid = false;
+        input.classList.add('invalid');
+      } else {
+        result.push(v);
+      }
+    });
+    if(!valid) return;
+    magicValues = result;
+    saveMagicValuesToStorage(magicValues);
+    closeMagicPopup();
+  });
+
+  magicOverlay.addEventListener('click', function(e){
+    if(e.target === magicOverlay){
+      closeMagicPopup();
+    }
+  });
+
+  /* ---- secret long-press on Lap button arms playback ---- */
+  let lpTimer = null;
+  let longPressFired = false;
+  const LONG_PRESS_MS = 550;
+
+  function blinkMainDigit(){
+    clockEl.style.transition = 'opacity 0.08s ease';
+    clockEl.style.opacity = '0';
+    setTimeout(function(){
+      clockEl.style.opacity = '1';
+    }, 90);
+  }
+
+  function armMagicPlayback(){
+    magicPlaybackActive = true;
+    magicPlaybackIndex = 0;
+    blinkMainDigit();
+  }
+
+  function clearLpTimer(){
+    if(lpTimer){
+      clearTimeout(lpTimer);
+      lpTimer = null;
+    }
+  }
+
+  lapResetBtn.addEventListener('pointerdown', function(){
+    longPressFired = false;
+    clearLpTimer();
+    lpTimer = setTimeout(function(){
+      longPressFired = true;
+      armMagicPlayback();
+    }, LONG_PRESS_MS);
+  });
+
+  lapResetBtn.addEventListener('pointerup', clearLpTimer);
+  lapResetBtn.addEventListener('pointerleave', clearLpTimer);
+  lapResetBtn.addEventListener('pointercancel', clearLpTimer);
+
+  lapResetBtn.addEventListener('click', function(e){
+    if(longPressFired){
+      longPressFired = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if(lapResetBtn.classList.contains('disabled')){
+      /* idle/pre-Start state: preserve original no-op tap behavior */
+      return;
+    }
+    handleLapReset();
+  });
+
+
+  /* ===================================================================
+     MAGIC MODE 2 (new, completely independent from existing Magic Mode)
+     =================================================================== */
+
+  const MAGIC2_KEY = 'stopwatchMagicValues2';
+
+  function loadMagic2Values(){
+    try{
+      const raw = localStorage.getItem(MAGIC2_KEY);
+      if(!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.filter(v => /^[0-9]{2}$/.test(v)) : [];
+    }catch(e){
+      return [];
+    }
+  }
+
+  function saveMagic2ValuesToStorage(arr){
+    try{
+      localStorage.setItem(MAGIC2_KEY, JSON.stringify(arr));
+    }catch(e){
+      /* storage unavailable — fail silently */
+    }
+  }
+
+  let magic2Values = loadMagic2Values();
+  let magic2PlaybackActive = false;
+  let magic2PlaybackIndex = 0;
+
+  /* ---- World Clock triple-tap opens only Magic Mode 2 ---- */
+  const worldClockTab = document.getElementById('worldClockTab');
+  let magic2TapCount = 0;
+  let magic2TapTimer = null;
+  const MAGIC2_TAP_WINDOW_MS = 700;
+
+  worldClockTab.addEventListener('click', function(e){
+    e.stopPropagation();
+    magic2TapCount++;
+    if(magic2TapTimer) clearTimeout(magic2TapTimer);
+
+    if(magic2TapCount >= 3){
+      magic2TapCount = 0;
+      openMagic2Popup();
+      return;
+    }
+
+    magic2TapTimer = setTimeout(function(){
+      magic2TapCount = 0;
+    }, MAGIC2_TAP_WINDOW_MS);
+  });
+
+  /* ---- Magic Mode 2 setup popup ---- */
+  const magic2Overlay = document.getElementById('magic2Overlay');
+  const magic2List = document.getElementById('magic2List');
+  const magic2AddBtn = document.getElementById('magic2AddBtn');
+  const magic2SaveBtn = document.getElementById('magic2SaveBtn');
+
+  function magic2Ordinal(n){
+    if(n % 100 >= 11 && n % 100 <= 13) return n + 'th';
+    if(n % 10 === 1) return n + 'st';
+    if(n % 10 === 2) return n + 'nd';
+    if(n % 10 === 3) return n + 'rd';
+    return n + 'th';
+  }
+
+  function relabelMagic2Rows(){
+    const rows = magic2List.querySelectorAll('.magic2-row');
+    rows.forEach(function(row, i){
+      row.querySelector('.magic2-label').textContent = magic2Ordinal(i + 1);
+    });
+  }
+
+  function addMagic2Row(value){
+    const row = document.createElement('div');
+    row.className = 'magic2-row';
+
+    const label = document.createElement('span');
+    label.className = 'magic2-label';
+    label.textContent = magic2Ordinal(magic2List.children.length + 1);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.inputMode = 'numeric';
+    input.autocomplete = 'off';
+    input.maxLength = 2;
+    input.className = 'magic2-input';
+    input.value = value || '';
+    input.addEventListener('input', function(){
+      input.value = input.value.replace(/[^0-9]/g, '').slice(0, 2);
+      input.classList.remove('invalid');
+    });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'magic2-remove-btn';
+    removeBtn.textContent = '\u2715';
+    removeBtn.addEventListener('click', function(){
+      row.remove();
+      relabelMagic2Rows();
+    });
+
+    row.appendChild(label);
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    magic2List.appendChild(row);
+  }
+
+  function renderMagic2Popup(){
+    magic2List.innerHTML = '';
+    const values = magic2Values.length ? magic2Values : [''];
+    values.forEach(function(v){ addMagic2Row(v); });
+    relabelMagic2Rows();
+  }
+
+  function openMagic2Popup(){
+    renderMagic2Popup();
+    magic2Overlay.classList.add('open');
+  }
+
+  function closeMagic2Popup(){
+    magic2Overlay.classList.remove('open');
+  }
+
+  magic2AddBtn.addEventListener('click', function(){
+    addMagic2Row('');
+    relabelMagic2Rows();
+  });
+
+  magic2SaveBtn.addEventListener('click', function(){
+    const inputs = magic2List.querySelectorAll('.magic2-input');
+    const result = [];
+    let valid = true;
+
+    inputs.forEach(function(input){
+      const v = input.value.trim();
+      if(!/^[0-9]{2}$/.test(v)){
+        valid = false;
+        input.classList.add('invalid');
+      }else{
+        result.push(v);
+      }
+    });
+
+    if(!valid || result.length === 0) return;
+
+    magic2Values = result;
+    saveMagic2ValuesToStorage(magic2Values);
+    magic2PlaybackActive = false;
+    magic2PlaybackIndex = 0;
+    closeMagic2Popup();
+  });
+
+  magic2Overlay.addEventListener('click', function(e){
+    if(e.target === magic2Overlay) closeMagic2Popup();
+  });
+
+  /* ---- Start long-press activates Magic Mode 2 ---- */
+  let magic2LpTimer = null;
+  let magic2LongPressFired = false;
+  const MAGIC2_LONG_PRESS_MS = 550;
+
+  function armMagic2Playback(){
+    if(magic2Values.length === 0) return;
+    magic2PlaybackActive = true;
+    magic2PlaybackIndex = 0;
+    blinkMainDigit();
+  }
+
+  function clearMagic2LpTimer(){
+    if(magic2LpTimer){
+      clearTimeout(magic2LpTimer);
+      magic2LpTimer = null;
+    }
+  }
+
+  startStopBtn.addEventListener('pointerdown', function(){
+    magic2LongPressFired = false;
+    clearMagic2LpTimer();
+    magic2LpTimer = setTimeout(function(){
+      magic2LongPressFired = true;
+      armMagic2Playback();
+    }, MAGIC2_LONG_PRESS_MS);
+  });
+
+  startStopBtn.addEventListener('pointerup', clearMagic2LpTimer);
+  startStopBtn.addEventListener('pointerleave', clearMagic2LpTimer);
+  startStopBtn.addEventListener('pointercancel', clearMagic2LpTimer);
+
+  /* Long-press activation must not also perform the normal click action. */
+  startStopBtn.addEventListener('click', function(e){
+    if(magic2LongPressFired){
+      magic2LongPressFired = false;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  }, true);
+
+  function applyMagic2StopValue(){
+    if(!magic2PlaybackActive || magic2PlaybackIndex >= magic2Values.length) return;
+
+    const value = magic2Values[magic2PlaybackIndex];
+    const t = formatTime(getElapsed());
+    clockEl.innerHTML = t.main + '<span class="unit">.</span>' + value;
+    magic2PlaybackIndex++;
+
+    if(magic2PlaybackIndex >= magic2Values.length){
+      magic2PlaybackActive = false;
+    }
+  }
+
+  renderClock();
+  setInitialState();
+})();
+</script>
+
+</body>
+</html>
